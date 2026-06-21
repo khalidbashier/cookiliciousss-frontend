@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// 1. Force Next.js to treat this as a dynamic API route instead of trying to pre-build it statically
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
+    // 2. Move this INSIDE the function so it only runs on actual execution
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not defined in environment variables");
+    }
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
     const body = await request.json();
     const { customerName, customerEmail, customerPhone, fulfillmentMethod, address, timeSlot, boxSize, flavors } = body;
 
@@ -34,6 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Email API Route Error:", error);
     return NextResponse.json({ error: "Failed to parse or send email" }, { status: 500 });
   }
 }
