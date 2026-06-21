@@ -9,7 +9,7 @@ import {
   useMotionTemplate,
   useScroll,
   useTransform,
-} from "framer-motion" // Adjusted to 'framer-motion' matching standard installation handles
+} from "framer-motion"
 
 import { cn } from "@/lib/utils"
 
