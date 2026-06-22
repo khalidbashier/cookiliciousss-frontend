@@ -1,24 +1,40 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-// 1. Force Next.js to treat this as a dynamic API route instead of trying to pre-build it statically
+// Forces Next.js to treat this route as purely dynamic
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    // 2. Move this INSIDE the function so it only runs on actual execution
+    // 1. Verify the key exists in Vercel before trying to use it
     if (!process.env.RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not defined in environment variables");
+      return NextResponse.json(
+        { error: "Configuration Error: RESEND_API_KEY is missing on the server." },
+        { status: 500 }
+      );
     }
+
+    // 2. Initialize Resend safely inside the request handler
     const resend = new Resend(process.env.RESEND_API_KEY);
 
+    // 3. Parse incoming checkout data
     const body = await request.json();
-    const { customerName, customerEmail, customerPhone, fulfillmentMethod, address, timeSlot, boxSize, flavors } = body;
+    const { 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      fulfillmentMethod, 
+      address, 
+      timeSlot, 
+      boxSize, 
+      flavors 
+    } = body;
 
+    // 4. Dispatch the email via Resend
     await resend.emails.send({
-      // ⚠️ CRITICAL: Free testing accounts MUST use this exact 'from' email!
+      // NOTE: Free testing accounts must use this exact 'from' address
       from: "Cookiliciousss <onboarding@resend.dev>", 
-      // ⚠️ CRITICAL: Free sandbox accounts can ONLY send to your personal login email address!
+      // NOTE: Free sandbox accounts can only send to your registered personal email address
       to: [customerEmail], 
       subject: "🍪 Cookiliciousss Order Custom Build Reservation Locked In!",
       html: `
@@ -29,7 +45,7 @@ export async function POST(request: Request) {
           <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
           <p><strong>Box Configuration:</strong> Custom ${boxSize}-Pack Bundle</p>
           <p><strong>Flavors Selected:</strong> ${flavors}</p>
-          <p><strong>Fulfillment Mode:</strong> ${fulfillmentMethod.toUpperCase()}</p>
+          <p><strong>Fulfillment Mode:</strong> ${fulfillmentMethod ? fulfillmentMethod.toUpperCase() : 'N/A'}</p>
           <p><strong>Destination Parameters:</strong> ${address}</p>
           <p><strong>Schedule Window:</strong> ${timeSlot}</p>
           <p><strong>Contact Phone:</strong> ${customerPhone}</p>
@@ -40,8 +56,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Email API Route Error:", error);
-    return NextResponse.json({ error: "Failed to parse or send email" }, { status: 500 });
+  } catch (error: any) {
+    console.error("API Error:", error);
+    return NextResponse.json(
+      { error: "Internal server error processing email execution.", details: error.message },
+      { status: 500 }
+    );
   }
 }
